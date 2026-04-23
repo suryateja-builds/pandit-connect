@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enums removed for SQLite
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  phone         String?   @unique
+  role          String    @default("USER") // Using String instead of Enum for SQLite compatibility if needed, but Prisma emulates enums on SQLite as strings. Let's stick to String to be safe with SQLite.
+  image         String?
+  createdAt     DateTime  @default(now())
+  
+  // Relations
+  panditProfile PanditProfile?
+  bookings      Booking[] @relation("CustomerBookings")
+  reviewsGiven  Review[]
+}
+
+model PanditProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id])
+  bio            String?
+  experienceYrs  Int      @default(0)
+  languages      String   // Storing as JSON string since SQLite doesn't support string arrays easily out of the box, but we'll use a string for MVP. "Hindi, Telugu"
+  location       String
+  isVerified     Boolean  @default(false)
+  documents      String?  // JSON string
+  hourlyRate     Float    @default(0)
+  rating         Float    @default(0)
+  
+  // Relations
+  services       Service[]
+  bookings       Booking[] @relation("PanditBookings")
+  reviews        Review[]
+}
+
+model Service {
+  id            String   @id @default(cuid())
+  name          String   // e.g., "Griha Pravesh", "Satyanarayan Katha"
+  description   String?
+  basePrice     Float
+  panditId      String
+  pandit        PanditProfile @relation(fields: [panditId], references: [id])
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  customerId    String
+  panditId      String
+  serviceName   String
+  date          DateTime
+  time          String
+  status        String   @default("PENDING") // Enum emulation
+  totalAmount   Float
+  paymentId     String?  // Razorpay Payment ID
+  address       String
+  notes         String?
+  createdAt     DateTime @default(now())
+  
+  // Relations
+  customer      User     @relation("CustomerBookings", fields: [customerId], references: [id])
+  pandit        PanditProfile @relation("PanditBookings", fields: [panditId], references: [id])
+}
+
+model Review {
+  id            String   @id @default(cuid())
+  rating        Int
+  comment       String?
+  customerId    String
+  panditId      String
+  createdAt     DateTime @default(now())
+  
+  customer      User     @relation(fields: [customerId], references: [id])
+  pandit        PanditProfile @relation(fields: [panditId], references: [id])
+}
